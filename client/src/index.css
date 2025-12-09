@@ -158,37 +158,37 @@
   .theme-light h4,
   .theme-light h5,
   .theme-light h6 {
-    @apply text-surface-900;
+    color: #0f172a !important;
   }
 
   /* Text color utilities for light mode */
   .theme-light .text-white {
-    @apply text-surface-900;
+    color: #0f172a !important;
   }
 
   .theme-light .text-slate-100,
   .theme-light .text-surface-100 {
-    @apply text-surface-900;
+    color: #0f172a !important;
   }
 
   .theme-light .text-slate-200,
   .theme-light .text-surface-200 {
-    @apply text-surface-800;
+    color: #1e293b !important;
   }
 
   .theme-light .text-slate-300,
   .theme-light .text-surface-300 {
-    @apply text-surface-700;
+    color: #334155 !important;
   }
 
   .theme-light .text-slate-400,
   .theme-light .text-surface-400 {
-    @apply text-surface-600;
+    color: #475569 !important;
   }
 
   .theme-light .text-slate-500,
   .theme-light .text-surface-500 {
-    @apply text-surface-500;
+    color: #64748b !important;
   }
 
   /* Background utilities for light mode */
@@ -196,7 +196,7 @@
   .theme-light .bg-surface-900\/50,
   .theme-light .bg-surface-900\/80,
   .theme-light .bg-surface-900\/90 {
-    @apply bg-white;
+    background-color: #ffffff !important;
   }
 
   .theme-light .bg-surface-800,
@@ -204,40 +204,40 @@
   .theme-light .bg-surface-800\/70,
   .theme-light .bg-surface-800\/80,
   .theme-light .bg-surface-800\/90 {
-    @apply bg-surface-50;
+    background-color: #f8fafc !important;
   }
 
   .theme-light .bg-surface-700,
   .theme-light .bg-surface-700\/50 {
-    @apply bg-surface-100;
+    background-color: #f1f5f9 !important;
   }
 
   /* Border utilities for light mode */
   .theme-light .border-surface-700,
   .theme-light .border-surface-700\/50 {
-    @apply border-surface-200;
+    border-color: #e2e8f0 !important;
   }
 
   .theme-light .border-surface-600,
   .theme-light .border-surface-600\/50 {
-    @apply border-surface-300;
+    border-color: #cbd5e1 !important;
   }
 
   .theme-light .border-white\/5,
   .theme-light .border-white\/10 {
-    @apply border-surface-200;
+    border-color: #e2e8f0 !important;
   }
 
   /* Divide utilities for light mode */
   .theme-light .divide-surface-700 > * + *,
   .theme-light .divide-white\/5 > * + * {
-    @apply border-surface-200;
+    border-color: #e2e8f0 !important;
   }
 
   /* Hover states for light mode */
   .theme-light .hover\:bg-surface-700:hover,
   .theme-light .hover\:bg-white\/5:hover {
-    @apply bg-surface-100;
+    background-color: #f1f5f9 !important;
   }
 
   /* Scrollbar styling */
