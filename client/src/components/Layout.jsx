@@ -1,14 +1,19 @@
-﻿import React from "react";
-import Sidebar from "./Sidebar.jsx";
+import React from "react";
 import Header from "./Header.jsx";
 
 const Layout = ({ user, onLogout, onToggleTheme, theme, children }) => (
-  <div id="top" className="min-h-screen flex text-slate-100 bg-surface-900">
-    <Sidebar user={user} />
-    <div className="flex-1 flex flex-col">
-      <Header user={user} onLogout={onLogout} onToggleTheme={onToggleTheme} theme={theme} />
-      <main className="p-6 lg:p-10 space-y-6 max-w-7xl mx-auto w-full animate-fade-up">{children}</main>
-    </div>
+  <div className="min-h-screen flex flex-col">
+    <Header user={user} onLogout={onLogout} onToggleTheme={onToggleTheme} theme={theme} />
+    <main className="flex-1 animate-fade-up">
+      {children}
+    </main>
+    <footer className="border-t border-surface-700/50 py-6">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <p className="text-center text-sm text-surface-400">
+          Sistema ERP de Hostelería · Powered by Supabase
+        </p>
+      </div>
+    </footer>
   </div>
 );
 

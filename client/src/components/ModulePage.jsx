@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { moduleApi } from "../api.js";
 import DataTable from "./DataTable.jsx";
 import { supabase } from "../lib/supabaseClient";
@@ -18,9 +18,9 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
   const [form, setForm] = useState(initialState(fields));
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
   const [rawCsv, setRawCsv] = useState("");
-  const [importDate, setImportDate] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadTarget, setUploadTarget] = useState("");
@@ -61,51 +61,28 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
   const parseEmployeesCsv = () => {
     const lines = rawCsv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     if (!lines.length) throw new Error("CSV vacío.");
-
-    const headerLine = lines.find((l) => l.toLowerCase().includes("manipulador alimentos") || l.toLowerCase().includes("cuenta bancaria"));
-    if (headerLine) {
-      const body = lines.slice(lines.indexOf(headerLine) + 1);
-      const registros = [];
-      for (const line of body) {
-        if (!line || /total/i.test(line)) continue;
-        const cells = line.split(",").map((c) => c.replace(/"/g, "").trim());
-        const [nombre, documentos, iban, manipulador, sueldoStr, vacTomadasStr, vacNotas] = cells;
-        if (!nombre || nombre.toLowerCase().includes("tarde") || nombre.toLowerCase().includes("mañana")) continue;
-        const sueldo = parseCurrency(sueldoStr || "0") || 0;
-        const vacTomadas = parseFloat((vacTomadasStr || "0").replace(",", ".")) || 0;
-        const vacRestantes = Math.max(0, 30 - vacTomadas);
-        const mani = manipulador && /x|si|sí|true|1/i.test(manipulador) ? "Sí" : "";
-        registros.push({
-          nombre,
-          dni: "",
-          contrato: "Nómina mensual",
-          sueldo,
-          iban,
-          documentos,
-          manipulador: mani,
-          vacaciones_tomadas: vacTomadas,
-          vacaciones_restantes: vacRestantes,
-          notas: vacNotas || ""
-        });
-      }
-      if (!registros.length) throw new Error("No se encontraron filas válidas en el CSV de personal.");
-      return registros;
-    }
-
-    const hasHeader = lines[0].toLowerCase().includes("nómina") || lines[0].toLowerCase().includes("efectivo");
+    const hasHeader = lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("nómina");
     const body = hasHeader ? lines.slice(1) : lines;
     const registros = [];
     for (const line of body) {
       if (!line || /total/i.test(line)) continue;
       const cells = line.split(",").map((c) => c.replace(/"/g, "").trim());
-      const [nombre, nominaStr, efectivoStr] = cells;
+      const [nombre, ...rest] = cells;
       if (!nombre) continue;
-      const nomina = parseCurrency(nominaStr || "0") || 0;
-      const efectivo = parseCurrency(efectivoStr || "0") || 0;
-      const sueldo = nomina + efectivo;
-      registros.push({ nombre, dni: "", contrato: "Nómina mensual", sueldo });
+      registros.push({
+        nombre,
+        dni: rest[0] || "",
+        contrato: rest[1] || "Contrato estándar",
+        sueldo: parseCurrency(rest[2]) || 0,
+        iban: rest[3] || "",
+        vacaciones_tomadas: parseFloat(rest[4]) || 0,
+        vacaciones_restantes: Math.max(0, 30 - (parseFloat(rest[4]) || 0)),
+        documentos: rest[5] || "",
+        turno: rest[6] || "",
+        notas: rest[7] || ""
+      });
     }
-    if (!registros.length) throw new Error("No se encontraron filas válidas en el CSV de personal.");
+    if (!registros.length) throw new Error("No se encontraron filas válidas en el CSV.");
     return registros;
   };
 
@@ -113,23 +90,14 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
     const sueldo = data.sueldo !== "" ? Number(parseFloat(data.sueldo)) : null;
     const vacTomadas = data.vacaciones_tomadas !== "" ? Number(parseFloat(data.vacaciones_tomadas)) : 0;
     const vacRestantes = data.vacaciones_restantes !== "" ? Number(parseFloat(data.vacaciones_restantes)) : Math.max(0, 30 - vacTomadas);
-    const maniVal = (data.manipulador || "").toString().trim().toLowerCase();
-    const manipulador = ["si", "sí", "x", "true", "1"].includes(maniVal) ? "Sí" : data.manipulador || "";
-    return { ...data, sueldo, vacaciones_tomadas: vacTomadas, vacaciones_restantes: vacRestantes, manipulador };
+    return { ...data, sueldo, vacaciones_tomadas: vacTomadas, vacaciones_restantes: vacRestantes };
   };
 
   const handleImport = async () => {
     try {
       setError("");
       setStatus("");
-      const parsed =
-        resource === "contabilidad"
-          ? parseContabilidadCsv()
-          : resource === "turnos"
-          ? parseTurnosCsv()
-          : resource === "empleados"
-          ? parseEmployeesCsv()
-          : [];
+      const parsed = resource === "empleados" ? parseEmployeesCsv() : [];
       if (!parsed.length) throw new Error("CSV vacío.");
       const normalized = resource === "empleados" ? parsed.map(normalizeEmployee) : parsed;
       const created = await Promise.all(normalized.map((row) => api.create(row, locale)));
@@ -178,6 +146,7 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
       }
       setStatus("Documento subido y enlazado.");
       fileInputRef.current.value = "";
+      setUploadDocType("");
     } catch (err) {
       setUploadError(err.message || "Error al subir el archivo (verifica bucket empleados-docs en Supabase).");
     } finally {
@@ -197,11 +166,12 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
         setStatus("Cambios guardados correctamente.");
       } else {
         const created = await api.create(payload, locale);
-        setItems((prev) => [...prev, created]);
+        setItems((prev) => [created, ...prev]);
         setStatus("Registro creado.");
       }
       setForm(initialState(fields));
       setEditingId(null);
+      setShowForm(false);
     } catch (err) {
       setError(err.message);
     }
@@ -210,7 +180,9 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
   const handleEdit = (row) => {
     setForm(fields.reduce((acc, field) => ({ ...acc, [field.key]: row[field.key] || "" }), {}));
     setEditingId(row.id);
+    setShowForm(true);
     setStatus("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
@@ -226,6 +198,13 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
     }
   };
 
+  const handleCancel = () => {
+    setForm(initialState(fields));
+    setEditingId(null);
+    setShowForm(false);
+    setStatus("");
+  };
+
   const filtered = items.filter((item) => JSON.stringify(item).toLowerCase().includes(filter.toLowerCase()));
 
   const columnsBasic = isEmployees
@@ -239,60 +218,81 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
     : [];
 
   return (
-    <section id={resource} className="card p-5 md:p-6 space-y-4 text-slate-100 border-white/5">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="pill uppercase tracking-wide text-xs bg-brand-600/20 border-brand-500/40 text-brand-50">
-              {resource} · {locale}
+    <section id={resource} className="card p-5 md:p-6 space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="pill bg-brand-600/20 border-brand-500/40 text-brand-300 uppercase text-xs">
+              {resource}
             </span>
-            {loading && <span className="text-xs text-slate-400">Actualizando...</span>}
+            {loading && (
+              <div className="flex items-center gap-2 text-xs text-surface-400">
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Cargando...
+              </div>
+            )}
           </div>
-          <h3 className="text-xl font-semibold text-white">{title}</h3>
-          <p className="text-sm text-slate-400 max-w-2xl">{description}</p>
+          <h3 className="text-xl md:text-2xl font-bold text-white">{title}</h3>
+          <p className="text-sm text-surface-400 max-w-2xl">{description}</p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <span className="absolute left-3 top-3 text-slate-500">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" />
-              </svg>
-            </span>
-            <input className="input pl-9 py-2.5 text-sm" placeholder="Filtrar..." value={filter} onChange={(e) => setFilter(e.target.value)} />
-          </div>
-          <button onClick={load} className="btn px-4 py-2 text-sm">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 4v5h-5" />
+          <button onClick={load} disabled={loading} className="btn px-3 py-2 text-sm">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Refrescar
           </button>
+          <button onClick={() => setShowForm(!showForm)} className="btn btn-primary px-4 py-2 text-sm">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {showForm ? "Cerrar formulario" : "Nuevo registro"}
+          </button>
+          {isEmployees && (
+            <button onClick={() => setShowImporter(true)} className="btn px-4 py-2 text-sm">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Importar CSV
+            </button>
+          )}
         </div>
       </div>
 
-      {error && <div className="text-sm text-rose-200 bg-rose-900/40 border border-rose-500/30 px-3 py-2 rounded-xl">{error}</div>}
-      {status && !error && <div className="text-sm text-emerald-200 bg-emerald-900/30 border border-emerald-500/30 px-3 py-2 rounded-xl">{status}</div>}
+      {/* Alerts */}
+      {error && <div className="alert alert-error">{error}</div>}
+      {status && !error && <div className="alert alert-success">{status}</div>}
 
-      <div className="space-y-4">
-        <form onSubmit={handleSubmit} className="card p-4 space-y-4 border-white/5 bg-surface-900">
+      {/* Form */}
+      {showForm && (
+        <div className="card p-5 md:p-6 space-y-5 border-brand-500/30 bg-surface-850">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-brand-400" />
-              {editingId ? "Editar registro" : "Crear registro"}
-            </p>
-            {editingId && (
-              <button type="button" onClick={() => { setEditingId(null); setForm(initialState(fields)); }} className="text-xs text-slate-300 hover:text-white">
-                Limpiar
-              </button>
-            )}
+            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-brand-400"></span>
+              {editingId ? "Editar registro" : "Crear nuevo registro"}
+            </h4>
+            <button onClick={handleCancel} className="text-sm text-surface-400 hover:text-white">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {fields
-              .filter((f) => f.key !== "documentos")
-              .map((field) => (
-                <label key={field.key} className="flex flex-col gap-2 text-sm">
-                  <span className="text-slate-300 font-medium">{field.label}</span>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {fields.filter((f) => f.key !== "documentos").map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <label htmlFor={field.key} className="block text-sm font-medium text-surface-200">
+                    {field.label}
+                    {field.required && <span className="text-rose-400 ml-1">*</span>}
+                  </label>
                   {field.key === "turno" ? (
                     <select
+                      id={field.key}
                       value={form[field.key] || ""}
                       onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                       className="input"
@@ -303,6 +303,7 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
                     </select>
                   ) : (
                     <input
+                      id={field.key}
                       required={field.required}
                       type={field.type || "text"}
                       value={form[field.key] || ""}
@@ -312,108 +313,119 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
                       step={field.step}
                     />
                   )}
-                </label>
+                </div>
               ))}
-          </div>
-          {isEmployees && (
-            <div className="flex flex-col gap-3 text-sm border-t border-white/5 pt-3">
-              <span className="text-slate-300 font-medium">Subir documento (PDF/JPG/PNG)</span>
-              <div className="grid sm:grid-cols-3 gap-3 items-center">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-slate-400">Empleado destino</label>
-                  <select className="input" value={uploadTarget} onChange={(e) => setUploadTarget(e.target.value)}>
-                    <option value="">-- Elegir empleado --</option>
-                    {items.map((it) => (
-                      <option key={it.id} value={it.id}>
-                        {it.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-slate-400">Nombre del documento</label>
-                  <input
-                    className="input"
-                    placeholder="Ej: Contrato, Carnet manipulador, DNI..."
-                    value={uploadDocType}
-                    onChange={(e) => setUploadDocType(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="text-xs text-slate-300" />
-                  <button type="button" onClick={handleUpload} className="btn text-sm" disabled={uploading}>
-                    {uploading ? "Subiendo..." : "Subir y enlazar"}
+            </div>
+
+            {isEmployees && (
+              <div className="border-t border-surface-700 pt-5 space-y-4">
+                <h5 className="text-sm font-semibold text-white">Subir documento</h5>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-2">
+                    <label className="block text-xs text-surface-400">Empleado</label>
+                    <select className="input" value={uploadTarget} onChange={(e) => setUploadTarget(e.target.value)}>
+                      <option value="">-- Elegir empleado --</option>
+                      {items.map((it) => (
+                        <option key={it.id} value={it.id}>
+                          {it.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs text-surface-400">Tipo de documento</label>
+                    <input
+                      className="input"
+                      placeholder="Ej: Contrato, DNI..."
+                      value={uploadDocType}
+                      onChange={(e) => setUploadDocType(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs text-surface-400">Archivo</label>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="text-xs text-surface-300 w-full" />
+                  </div>
+                  <button type="button" onClick={handleUpload} className="btn btn-success" disabled={uploading}>
+                    {uploading ? "Subiendo..." : "Subir"}
                   </button>
                 </div>
+                {uploadError && <p className="text-xs text-rose-300">{uploadError}</p>}
               </div>
-              {uploadError && <p className="text-xs text-rose-200">{uploadError}</p>}
-              <p className="text-xs text-slate-400">Bucket público empleados-docs en Supabase Storage.</p>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="submit" className="btn btn-primary text-sm font-semibold">
-              {editingId ? "Guardar cambios" : "Crear"}
-            </button>
-            {editingId && (
-              <button type="button" onClick={() => { setEditingId(null); setForm(initialState(fields)); }} className="btn text-sm">
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="btn btn-primary">
+                {editingId ? "Guardar cambios" : "Crear registro"}
+              </button>
+              <button type="button" onClick={handleCancel} className="btn">
                 Cancelar
               </button>
-            )}
-            {(resource === "contabilidad" || resource === "turnos" || resource === "empleados") && (
-              <button type="button" onClick={() => setShowImporter(true)} className="btn text-sm">
-                Importar CSV
-              </button>
-            )}
-          </div>
-        </form>
+            </div>
+          </form>
+        </div>
+      )}
 
-        {isEmployees ? (
-          <div className="space-y-4">
-            <div className="card p-3 border-white/5">
-              <p className="text-sm font-semibold mb-2 text-slate-100">Datos generales</p>
-              <DataTable columns={columnsBasic} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
-            </div>
-            <div className="card p-3 border-white/5">
-              <p className="text-sm font-semibold mb-2 text-slate-100">Compensación y vacaciones</p>
-              <DataTable columns={columnsVac} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
-            </div>
-          </div>
-        ) : (
-          <div className="card p-3 border-white/5">
-            <DataTable columns={fields} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
-          </div>
-        )}
+      {/* Search */}
+      <div className="relative max-w-md">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          className="input pl-10"
+          placeholder="Buscar en registros..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
       </div>
 
+      {/* Data Tables */}
+      {isEmployees ? (
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h5 className="text-sm font-semibold text-white">Datos generales</h5>
+            <DataTable columns={columnsBasic} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
+          </div>
+          <div className="space-y-3">
+            <h5 className="text-sm font-semibold text-white">Compensación y vacaciones</h5>
+            <DataTable columns={columnsVac} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
+          </div>
+        </div>
+      ) : (
+        <DataTable columns={fields} rows={filtered} onEdit={handleEdit} onDelete={handleDelete} />
+      )}
+
+      {/* CSV Importer Modal */}
       {showImporter && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center p-4">
-          <div className="card max-w-4xl w-full p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="card max-w-3xl w-full p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-brand-200">Importar CSV</p>
-                <h4 className="text-lg font-semibold text-white">{title} · {locale}</h4>
+                <span className="pill text-xs mb-2">Importar CSV</span>
+                <h4 className="text-xl font-bold text-white">{title}</h4>
               </div>
-              <button className="btn text-sm" onClick={() => setShowImporter(false)}>Cerrar</button>
+              <button onClick={() => setShowImporter(false)} className="btn px-3 py-2">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            {resource === "empleados" && (
-              <p className="text-sm text-slate-300">CSV con columnas Nombre, Nómina, Efectivo o el formato Mañana/Tarde que enviaste.</p>
-            )}
-            {resource === "contabilidad" && (
-              <div className="space-y-2 text-sm text-slate-300">
-                <p>Pega CSV diario, resumen o nóminas. Si es resumen o nóminas, indica fecha.</p>
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-slate-400">Fecha a aplicar (resumen/nóminas)</span>
-                  <input type="date" className="input" value={importDate} onChange={(e) => setImportDate(e.target.value)} />
-                </label>
-              </div>
-            )}
-            {resource === "turnos" && (
-              <p className="text-sm text-slate-300">CSV con cabecera de días (LUNES 08/09...). Genera un registro por empleado y día.</p>
-            )}
-            <textarea className="input min-h-[240px] font-mono text-xs" placeholder="Pega aquí tu CSV..." value={rawCsv} onChange={(e) => setRawCsv(e.target.value)} />
-            <div className="flex items-center gap-2">
-              <button className="btn btn-primary text-sm" onClick={handleImport}>Importar</button>
-              <button className="btn text-sm" onClick={() => setShowImporter(false)}>Cancelar</button>
+            <p className="text-sm text-surface-300">
+              Pega tu CSV con las columnas: Nombre, DNI, Contrato, Sueldo, IBAN, Vac. Tomadas, Documentos, Turno, Notas
+            </p>
+            <textarea
+              className="input min-h-[240px] font-mono text-xs"
+              placeholder="Pega aquí tu CSV..."
+              value={rawCsv}
+              onChange={(e) => setRawCsv(e.target.value)}
+            />
+            <div className="flex gap-3">
+              <button onClick={handleImport} className="btn btn-primary">
+                Importar registros
+              </button>
+              <button onClick={() => setShowImporter(false)} className="btn">
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
