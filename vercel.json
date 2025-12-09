@@ -1,10 +1,13 @@
 {
   "version": 2,
   "framework": "vite",
-  "installCommand": "cd client && npm install",
-  "buildCommand": "cd client && npm run build",
+  "installCommand": "npm install --prefix client",
+  "buildCommand": "npm run build --prefix client",
   "outputDirectory": "client/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
