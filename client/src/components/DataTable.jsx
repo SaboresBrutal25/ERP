@@ -1,6 +1,8 @@
-﻿import React from "react";
+import React from "react";
 
 const renderCell = (col, row) => {
+  if (col.render) return col.render(row);
+
   if (col.key === "documentos" && row[col.key]) {
     const docs = row[col.key]
       .split(",")
@@ -30,12 +32,12 @@ const renderCell = (col, row) => {
     );
   }
   if (typeof row[col.key] === "boolean") {
-    return row[col.key] ? "Sí" : "No";
+    return row[col.key] ? "Si" : "No";
   }
   return row[col.key] || "-";
 };
 
-const DataTable = ({ columns, rows, onEdit, onDelete }) => {
+const DataTable = ({ columns, rows, onEdit, onDelete, onView, onRowClick }) => {
   return (
     <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
       <table className="min-w-full text-sm">
@@ -49,7 +51,11 @@ const DataTable = ({ columns, rows, onEdit, onDelete }) => {
         </thead>
         <tbody className="divide-y divide-white/5">
           {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/5">
+            <tr
+              key={row.id}
+              className={`hover:bg-white/5 ${onRowClick ? "cursor-pointer" : ""}`}
+              onClick={() => onRowClick && onRowClick(row)}
+            >
               {columns.map((col) => (
                 <td key={col.key} className="px-3 py-3 text-slate-100">
                   {renderCell(col, row)}
@@ -57,13 +63,21 @@ const DataTable = ({ columns, rows, onEdit, onDelete }) => {
               ))}
               <td className="px-3 py-3 flex flex-wrap gap-2">
                 <button
-                  onClick={() => onEdit(row)}
+                  onClick={(e) => { e.stopPropagation(); onEdit(row); }}
                   className="btn text-xs px-3 py-1.5 bg-brand-600/20 border border-brand-500/30 hover:bg-brand-600/30"
                 >
                   Editar
                 </button>
+                {onView && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onView(row); }}
+                    className="btn text-xs px-3 py-1.5 bg-white/10 border border-white/15 hover:bg-white/20"
+                  >
+                    Ver ficha
+                  </button>
+                )}
                 <button
-                  onClick={() => onDelete(row.id)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(row.id); }}
                   className="btn text-xs px-3 py-1.5 bg-rose-600/20 border border-rose-500/30 hover:bg-rose-600/30"
                 >
                   Borrar
@@ -74,7 +88,7 @@ const DataTable = ({ columns, rows, onEdit, onDelete }) => {
         </tbody>
       </table>
       {rows.length === 0 && (
-        <div className="text-sm text-slate-400 px-3 py-4">No hay registros todavía. Añade el primero.</div>
+        <div className="text-sm text-slate-400 px-3 py-4">No hay registros todavia. Anade el primero.</div>
       )}
     </div>
   );
