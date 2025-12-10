@@ -115,4 +115,26 @@
   .theme-light .text-brand-50 {
     color: #1d4ed8 !important;
   }
+  .theme-light .text-brand-100,
+  .theme-light .text-brand-200 {
+    color: #1d4ed8 !important;
+  }
+  .theme-light details summary {
+    color: #1d4ed8 !important;
+  }
+  .theme-light .bg-white\/5 {
+    background-color: #ffffff !important;
+  }
+  .theme-light .bg-white\/10 {
+    background-color: #f2f4f8 !important;
+  }
+  .theme-light .bg-brand-600\/20 {
+    background-color: rgba(37, 99, 235, 0.14) !important;
+  }
+  .theme-light .border-white\/15 {
+    border-color: #cdd4df !important;
+  }
+  .theme-light .divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #d7dce6 !important;
+  }
 }

@@ -57,6 +57,16 @@ const DateList = ({ value, empty }) => {
   );
 };
 
+const getInitials = (name) => {
+  if (!name) return "EMP";
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+};
+
 const ModulePage = ({ title, resource, fields, description, locale }) => {
   const api = useMemo(() => moduleApi(resource), [resource]);
   const [items, setItems] = useState([]);
@@ -79,6 +89,9 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
   const [showPendingCalendar, setShowPendingCalendar] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const fileInputRef = useRef(null);
+  const photoFileInputRef = useRef(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState("");
   const isEmployees = resource === "empleados";
 
   const load = async () => {
@@ -244,12 +257,58 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
       if (editingId === targetEmployee.id) {
         setForm((prev) => ({ ...prev, documentos: nextDocs }));
       }
+      if (selectedEmployee?.id === targetEmployee.id) {
+        setSelectedEmployee(updated);
+      }
       setStatus("Documento subido y enlazado.");
       fileInputRef.current.value = "";
     } catch (err) {
       setUploadError(err.message || "Error al subir el archivo (verifica bucket empleados-docs en Supabase).");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handlePhotoUpload = async () => {
+    if (!photoFileInputRef.current?.files?.length) {
+      setPhotoUploadError("Selecciona una foto");
+      return;
+    }
+    if (!uploadTarget) {
+      setPhotoUploadError("Selecciona el empleado destino");
+      return;
+    }
+    setPhotoUploadError("");
+    setStatus("");
+    setPhotoUploading(true);
+    try {
+      const targetEmployee = items.find((it) => it.id === uploadTarget);
+      if (!targetEmployee) throw new Error("Empleado no encontrado");
+      const file = photoFileInputRef.current.files[0];
+      const ext = file.name.split(".").pop();
+      const sanitizedName = (targetEmployee.nombre || "empleado").replace(/\s+/g, "-").toLowerCase();
+      const path = `${locale}/${sanitizedName}/foto-${Date.now()}.${ext}`;
+      const { data, error: uploadErr } = await supabase.storage.from("empleados-docs").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true
+      });
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from("empleados-docs").getPublicUrl(data.path);
+      const updatedEmployee = { ...targetEmployee, foto_url: urlData.publicUrl };
+      const updated = await api.update(targetEmployee.id, updatedEmployee);
+      setItems((prev) => prev.map((it) => (it.id === targetEmployee.id ? updated : it)));
+      if (editingId === targetEmployee.id) {
+        setForm((prev) => ({ ...prev, foto_url: urlData.publicUrl }));
+      }
+      if (selectedEmployee?.id === targetEmployee.id) {
+        setSelectedEmployee(updated);
+      }
+      setStatus("Foto subida y vinculada.");
+      photoFileInputRef.current.value = "";
+    } catch (err) {
+      setPhotoUploadError(err.message || "No se pudo subir la foto (revisa bucket empleados-docs).");
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -405,7 +464,7 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {fields
-              .filter((f) => !["documentos", "vacaciones_dias", "vacaciones_pendientes"].includes(f.key))
+              .filter((f) => !["documentos", "vacaciones_dias", "vacaciones_pendientes", "foto_url"].includes(f.key))
               .map((field) => {
                 const isVacTomadas = isEmployees && field.key === "vacaciones_tomadas";
                 const isVacRest = isEmployees && field.key === "vacaciones_restantes";
@@ -496,6 +555,41 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
               </div>
 
               <div className="flex flex-col gap-3 text-sm border-t border-white/5 pt-3">
+                <span className="text-slate-300 font-medium">Foto del empleado</span>
+                <div className="grid sm:grid-cols-3 gap-3 items-end">
+                  <div className="sm:col-span-2 flex flex-col gap-2">
+                    <label className="text-xs text-slate-400">URL de la foto</label>
+                    <input
+                      className="input"
+                      placeholder="https://.../foto.jpg"
+                      value={form.foto_url || ""}
+                      onChange={(e) => setForm({ ...form, foto_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-slate-400">Subir archivo</label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input ref={photoFileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" className="text-xs text-slate-300" />
+                      <button type="button" onClick={handlePhotoUpload} className="btn text-sm" disabled={photoUploading}>
+                        {photoUploading ? "Subiendo..." : "Subir foto"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {photoUploadError && <p className="text-xs text-rose-200">{photoUploadError}</p>}
+                {form.foto_url && (
+                  <div className="flex items-center gap-3 text-xs text-slate-300">
+                    <img
+                      src={form.foto_url}
+                      alt="Foto del empleado"
+                      className="h-16 w-16 rounded-xl object-cover border border-white/10 bg-white/5"
+                    />
+                    <span className="text-slate-200">Previsualización</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 text-sm border-t border-white/5 pt-3">
                 <span className="text-slate-300 font-medium">Subir documento (PDF/JPG/PNG)</span>
                 <div className="grid sm:grid-cols-3 gap-3 items-center">
                   <div className="flex flex-col gap-2">
@@ -567,7 +661,6 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onView={(row) => setSelectedEmployee(row)}
-                onRowClick={(row) => setSelectedEmployee(row)}
               />
             </div>
             <div className="card p-3 border-white/5">
@@ -578,7 +671,6 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onView={(row) => setSelectedEmployee(row)}
-                onRowClick={(row) => setSelectedEmployee(row)}
               />
             </div>
           </div>
@@ -632,14 +724,29 @@ const ModulePage = ({ title, resource, fields, description, locale }) => {
             >
               Cerrar
             </button>
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.25em] text-brand-200">Ficha de empleado</p>
-              <h4 className="text-2xl font-semibold text-white">{selectedEmployee.nombre || "Sin nombre"}</h4>
-              <p className="text-sm text-slate-300">{selectedEmployee.contrato || "Contrato no definido"}</p>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {selectedEmployee.turno && <span className="pill">{selectedEmployee.turno}</span>}
-                {selectedEmployee.dni && <span className="pill bg-white/10">DNI {selectedEmployee.dni}</span>}
-                {selectedEmployee.iban && <span className="pill bg-brand-600/20 border-brand-500/30">IBAN</span>}
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                {selectedEmployee.foto_url ? (
+                  <img
+                    src={selectedEmployee.foto_url}
+                    alt={`Foto de ${selectedEmployee.nombre || "empleado"}`}
+                    className="h-20 w-20 rounded-2xl object-cover border border-white/10 bg-white/5"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg font-semibold text-slate-200">
+                    {getInitials(selectedEmployee.nombre)}
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.25em] text-brand-200">Ficha de empleado</p>
+                  <h4 className="text-2xl font-semibold text-white">{selectedEmployee.nombre || "Sin nombre"}</h4>
+                  <p className="text-sm text-slate-300">{selectedEmployee.contrato || "Contrato no definido"}</p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {selectedEmployee.turno && <span className="pill">{selectedEmployee.turno}</span>}
+                    {selectedEmployee.dni && <span className="pill bg-white/10">DNI {selectedEmployee.dni}</span>}
+                    {selectedEmployee.iban && <span className="pill bg-brand-600/20 border-brand-500/30">IBAN {selectedEmployee.iban}</span>}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-3 text-sm">

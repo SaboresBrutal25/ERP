@@ -10,7 +10,7 @@ const renderCell = (col, row) => {
       .filter(Boolean);
     if (!docs.length) return "-";
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
         {docs.map((doc, idx) => {
           const parts = doc.split("|").map((p) => p.trim());
           const label = parts[0] || `Doc ${idx + 1}`;

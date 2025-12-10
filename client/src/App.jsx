@@ -23,6 +23,7 @@ const modules = [
       { key: "vacaciones_dias", label: "Detalle dias disfrutados", required: false },
       { key: "vacaciones_pendientes", label: "Solicitudes pendientes (dias)", required: false },
       { key: "documentos", label: "Documentos", required: false },
+      { key: "foto_url", label: "Foto (URL)", required: false },
       { key: "turno", label: "Turno", required: false },
       { key: "notas", label: "Notas", required: false }
     ]
