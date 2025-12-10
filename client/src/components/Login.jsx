@@ -2,8 +2,8 @@
 import { login } from "../api.js";
 
 const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState("admin@demo.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,8 +36,8 @@ const Login = ({ onLogin }) => {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
               <p className="text-xs text-slate-400">Usuarios</p>
-              <p className="font-semibold">admin1@... (tu email)</p>
-              <p className="font-semibold">admin2@... (tu email)</p>
+              <p className="font-semibold">Solo personal autorizado</p>
+              <p className="text-slate-300">Solicita acceso al administrador.</p>
             </div>
             <div className="p-4 rounded-2xl bg-brand-600/15 border border-brand-500/30 text-brand-50">
               <p className="text-xs text-brand-100">Seguridad</p>
@@ -58,6 +58,7 @@ const Login = ({ onLogin }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
+              placeholder="tu@empresa.com"
               className="input"
               required
             />
@@ -69,6 +70,7 @@ const Login = ({ onLogin }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              placeholder="********"
               className="input"
               required
             />
