@@ -14,6 +14,8 @@ import {
   differenceInMonths,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function FichaEmpleado() {
   const params = useParams()
@@ -268,6 +270,205 @@ export default function FichaEmpleado() {
     }
   }
 
+  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!empleado) return
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona un archivo de imagen')
+      return
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('La imagen debe ser menor a 2MB')
+      return
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `foto_${Date.now()}.${fileExt}`
+      const filePath = `${fileName}`
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('empleados-fotos')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data } = supabase.storage.from('empleados-fotos').getPublicUrl(filePath)
+
+      console.log('Public URL generada:', data.publicUrl)
+
+      // Update empleado with foto_url
+      const { error: updateError } = await supabase
+        .from('empleados')
+        .update({ foto_url: data.publicUrl })
+        .eq('id', empleado.id)
+
+      if (updateError) throw updateError
+
+      // Update local state
+      setEmpleado({ ...empleado, foto_url: data.publicUrl })
+
+      // Force reload to ensure image is displayed
+      await fetchEmpleado()
+
+      alert('Foto actualizada correctamente')
+    } catch (err) {
+      console.error('Error subiendo foto:', err)
+      alert('No se pudo subir la foto. Asegúrate de que el bucket "empleados-fotos" existe en Supabase Storage.')
+    }
+  }
+
+  const handlePrintPDF = () => {
+    if (!empleado) return
+
+    const doc = new jsPDF('portrait', 'mm', 'a4')
+
+    // Header
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.text('FICHA DE EMPLEADO', 105, 20, { align: 'center' })
+
+    // Company info
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Local: ${empleado.locale}`, 14, 35)
+    doc.text(`Fecha de generación: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 42)
+
+    // Employee photo placeholder
+    doc.setFillColor(255, 237, 213)
+    doc.rect(160, 30, 35, 35, 'F')
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(251, 146, 60)
+    doc.text(getInitials(empleado.nombre), 177.5, 52, { align: 'center' })
+    doc.setTextColor(0, 0, 0)
+
+    // Personal Data
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('DATOS PERSONALES', 14, 55)
+
+    const personalData = [
+      ['Nombre completo', empleado.nombre],
+      ['DNI / NIE', empleado.dni],
+      ['Local asignado', empleado.locale],
+    ]
+
+    autoTable(doc, {
+      startY: 58,
+      body: personalData,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+        1: { cellWidth: 'auto' },
+      },
+    })
+
+    // Labor Data
+    const lastY1 = (doc as any).lastAutoTable.finalY + 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('INFORMACIÓN LABORAL', 14, lastY1)
+
+    const laborData = [
+      ['Puesto', empleado.puesto || 'Sin puesto'],
+      ['Tipo de contrato', empleado.contrato],
+      ['Fecha de inicio', empleado.fecha_inicio ? format(new Date(empleado.fecha_inicio), 'dd/MM/yyyy') : 'No especificada'],
+      ['Antigüedad', calcularAntiguedad(empleado)],
+      ['Turno', empleado.turno || 'No especificado'],
+      ['Sueldo mensual neto', `${empleado.sueldo}€`],
+      ['IBAN', empleado.iban || 'No especificado'],
+    ]
+
+    autoTable(doc, {
+      startY: lastY1 + 3,
+      body: laborData,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+        1: { cellWidth: 'auto' },
+      },
+    })
+
+    // Vacation Data
+    const lastY2 = (doc as any).lastAutoTable.finalY + 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('VACACIONES', 14, lastY2)
+
+    const vacationData = [
+      ['Días tomados', `${empleado.vacaciones_tomadas || 0} días`],
+      ['Días restantes', `${empleado.vacaciones_restantes || 0} días`],
+    ]
+
+    autoTable(doc, {
+      startY: lastY2 + 3,
+      body: vacationData,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+        1: { cellWidth: 'auto' },
+      },
+    })
+
+    // Documents
+    const lastY3 = (doc as any).lastAutoTable.finalY + 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('DOCUMENTACIÓN', 14, lastY3)
+
+    if (documentos.length === 0) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('Sin documentos adjuntos', 14, lastY3 + 5)
+    } else {
+      const docsData = documentos.map((doc, index) => [
+        `${index + 1}`,
+        doc.name,
+        doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : '-',
+      ])
+
+      autoTable(doc, {
+        startY: lastY3 + 3,
+        head: [['#', 'Nombre del documento', 'Tamaño']],
+        body: docsData,
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      })
+    }
+
+    // Notes
+    const lastY4 = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 8 : lastY3 + 30
+    if (empleado.notas && lastY4 < 270) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text('NOTAS INTERNAS', 14, lastY4)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      const notasLines = doc.splitTextToSize(empleado.notas, 180)
+      doc.text(notasLines, 14, lastY4 + 5)
+    }
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+    doc.text('Documento confidencial - Uso interno', 105, 285, { align: 'center' })
+
+    // Save
+    doc.save(`ficha_${empleado.nombre.replace(/\s/g, '_')}.pdf`)
+  }
+
   if (loading) {
     return (
       <MainLayout
@@ -305,11 +506,30 @@ export default function FichaEmpleado() {
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           <div className="relative group">
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden shadow-lg border-4 border-white dark:border-slate-700">
-              <div className="w-full h-full bg-orange-100 text-orange-600 flex items-center justify-center text-3xl font-bold">
-                {getInitials(empleado.nombre)}
-              </div>
+              {empleado.foto_url ? (
+                <img
+                  src={empleado.foto_url}
+                  alt={empleado.nombre}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-orange-100 text-orange-600 flex items-center justify-center text-3xl font-bold">
+                  {getInitials(empleado.nombre)}
+                </div>
+              )}
             </div>
-            <button className="absolute bottom-2 right-2 p-2 bg-primary text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-primary-dark">
+            <input
+              id="photo-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUploadPhoto}
+            />
+            <button
+              onClick={() => document.getElementById('photo-upload')?.click()}
+              className="absolute bottom-2 right-2 p-2 bg-primary text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-primary-dark"
+              title="Subir foto"
+            >
               <span className="material-symbols-rounded text-sm">photo_camera</span>
             </button>
           </div>
@@ -365,7 +585,11 @@ export default function FichaEmpleado() {
               >
                 <span className="material-symbols-rounded">delete</span>
               </button>
-              <button className="flex items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+              <button
+                onClick={handlePrintPDF}
+                className="flex items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                title="Descargar ficha en PDF"
+              >
                 <span className="material-symbols-rounded">print</span>
               </button>
             </div>

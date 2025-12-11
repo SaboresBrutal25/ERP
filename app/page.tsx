@@ -10,6 +10,10 @@ export default function GestionPersonal() {
   const [extras, setExtras] = useState<Extra[]>([])
   const [selectedLocal, setSelectedLocal] = useState<string>('')
   const puestoOptions = ['Camarero', 'Encargado', 'Cocinero', 'Ayudante de cocina', 'Jefe de cocina']
+  const [filterPuesto, setFilterPuesto] = useState<string>('')
+  const [sortBy, setSortBy] = useState<'none' | 'sueldo-asc' | 'sueldo-desc' | 'puesto-asc' | 'puesto-desc' | 'nombre-asc' | 'nombre-desc'>('none')
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const handleLocalChange = (local: string) => {
     setSelectedLocal(local)
@@ -259,6 +263,76 @@ export default function GestionPersonal() {
       .slice(0, 2)
   }
 
+  const handleSortNombre = () => {
+    if (sortBy === 'nombre-asc') {
+      setSortBy('nombre-desc')
+    } else {
+      setSortBy('nombre-asc')
+    }
+  }
+
+  const handleSortSueldo = () => {
+    if (sortBy === 'sueldo-desc') {
+      setSortBy('sueldo-asc')
+    } else {
+      setSortBy('sueldo-desc')
+    }
+  }
+
+  const handleSortPuesto = () => {
+    if (sortBy === 'puesto-asc') {
+      setSortBy('puesto-desc')
+    } else {
+      setSortBy('puesto-asc')
+    }
+  }
+
+  // Filtrar y ordenar empleados
+  const filteredAndSortedEmpleados = () => {
+    let result = [...empleados]
+
+    // Aplicar filtro de búsqueda
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(
+        (emp) =>
+          emp.nombre.toLowerCase().includes(query) ||
+          (emp.puesto && emp.puesto.toLowerCase().includes(query)) ||
+          emp.dni.toLowerCase().includes(query)
+      )
+    }
+
+    // Aplicar filtro por puesto
+    if (filterPuesto) {
+      result = result.filter((emp) => emp.puesto === filterPuesto)
+    }
+
+    // Aplicar ordenación
+    if (sortBy === 'nombre-asc') {
+      result.sort((a, b) => a.nombre.localeCompare(b.nombre))
+    } else if (sortBy === 'nombre-desc') {
+      result.sort((a, b) => b.nombre.localeCompare(a.nombre))
+    } else if (sortBy === 'sueldo-asc') {
+      result.sort((a, b) => (a.sueldo || 0) - (b.sueldo || 0))
+    } else if (sortBy === 'sueldo-desc') {
+      result.sort((a, b) => (b.sueldo || 0) - (a.sueldo || 0))
+    } else if (sortBy === 'puesto-asc') {
+      result.sort((a, b) => {
+        const puestoA = a.puesto || ''
+        const puestoB = b.puesto || ''
+        return puestoA.localeCompare(puestoB)
+      })
+    } else if (sortBy === 'puesto-desc') {
+      result.sort((a, b) => {
+        const puestoA = a.puesto || ''
+        const puestoB = b.puesto || ''
+        return puestoB.localeCompare(puestoA)
+      })
+    }
+
+    return result
+  }
+
   return (
     <MainLayout
       title="Gestión de Personal"
@@ -289,8 +363,8 @@ export default function GestionPersonal() {
             </div>
           </div>
 
-          <div className="lg:col-span-8 flex flex-col md:flex-row gap-4">
-            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                   Empleados Activos
@@ -304,7 +378,7 @@ export default function GestionPersonal() {
               </div>
             </div>
 
-            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                   Extras
@@ -315,6 +389,20 @@ export default function GestionPersonal() {
               </div>
               <div className="h-12 w-12 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
                 <span className="material-symbols-rounded">group_add</span>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  Total Sueldos
+                </p>
+                <p className="text-3xl font-bold text-slate-800 dark:text-white mt-1">
+                  {empleados.reduce((sum, emp) => sum + (emp.sueldo || 0), 0).toLocaleString('es-ES')}€
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center">
+                <span className="material-symbols-rounded">euro</span>
               </div>
             </div>
           </div>
@@ -339,15 +427,64 @@ export default function GestionPersonal() {
                 search
               </span>
               <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full md:w-64 pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
                 placeholder="Buscar empleados..."
                 type="text"
               />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors">
-              <span className="material-symbols-rounded text-lg">filter_list</span>
-              Filtrar
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors"
+              >
+                <span className="material-symbols-rounded text-lg">filter_list</span>
+                Filtrar
+                {filterPuesto && (
+                  <span className="w-2 h-2 bg-primary rounded-full"></span>
+                )}
+              </button>
+              {showFilterMenu && (
+                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2 block">
+                        Filtrar por Puesto
+                      </label>
+                      <select
+                        value={filterPuesto}
+                        onChange={(e) => setFilterPuesto(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">Todos los puestos</option>
+                        {puestoOptions.map((puesto) => (
+                          <option key={puesto} value={puesto}>
+                            {puesto}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => {
+                          setFilterPuesto('')
+                        }}
+                        className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                      >
+                        Limpiar
+                      </button>
+                      <button
+                        onClick={() => setShowFilterMenu(false)}
+                        className="flex-1 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               onClick={fetchEmpleados}
               className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:text-primary transition-colors shadow-sm"
@@ -362,17 +499,41 @@ export default function GestionPersonal() {
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">
-                  Nombre
+                  <button
+                    onClick={handleSortNombre}
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                  >
+                    Nombre
+                    <span className="material-symbols-rounded text-lg">
+                      {sortBy === 'nombre-asc' ? 'arrow_upward' : sortBy === 'nombre-desc' ? 'arrow_downward' : 'unfold_more'}
+                    </span>
+                  </button>
                 </th>
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">
-                  Puesto
+                  <button
+                    onClick={handleSortPuesto}
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                  >
+                    Puesto
+                    <span className="material-symbols-rounded text-lg">
+                      {sortBy === 'puesto-asc' ? 'arrow_upward' : sortBy === 'puesto-desc' ? 'arrow_downward' : 'unfold_more'}
+                    </span>
+                  </button>
                 </th>
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">DNI</th>
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">
                   Contrato
                 </th>
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">
-                  Sueldo
+                  <button
+                    onClick={handleSortSueldo}
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                  >
+                    Sueldo
+                    <span className="material-symbols-rounded text-lg">
+                      {sortBy === 'sueldo-desc' ? 'arrow_downward' : sortBy === 'sueldo-asc' ? 'arrow_upward' : 'unfold_more'}
+                    </span>
+                  </button>
                 </th>
                 <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">
                   Turno
@@ -395,14 +556,16 @@ export default function GestionPersonal() {
                     Cargando empleados...
                   </td>
                 </tr>
-              ) : empleados.length === 0 ? (
+              ) : filteredAndSortedEmpleados().length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
-                    No hay empleados registrados
+                    {empleados.length === 0
+                      ? 'No hay empleados registrados'
+                      : 'No se encontraron empleados con los filtros aplicados'}
                   </td>
                 </tr>
               ) : (
-                empleados.map((empleado) => (
+                filteredAndSortedEmpleados().map((empleado) => (
                   <tr
                     key={empleado.id}
                     className="group hover:bg-blue-50/50 dark:hover:bg-slate-800/50 transition-colors"
@@ -412,8 +575,16 @@ export default function GestionPersonal() {
                         href={`/empleado/${empleado.id}`}
                         className="flex items-center gap-3 hover:text-primary"
                       >
-                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">
-                          {getInitials(empleado.nombre)}
+                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold overflow-hidden">
+                          {empleado.foto_url ? (
+                            <img
+                              src={empleado.foto_url}
+                              alt={empleado.nombre}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            getInitials(empleado.nombre)
+                          )}
                         </div>
                         {empleado.nombre}
                       </Link>

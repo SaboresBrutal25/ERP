@@ -216,8 +216,15 @@ export default function GestionNominas() {
     setShowModal(true)
   }
 
-  const calculatePayrollDetails = (sueldo: number) => {
-    const sueldoBrutoMensual = sueldo / 12
+  const calculatePayrollDetails = (sueldoMensualNeto: number) => {
+    // El sueldo guardado en la BD es el sueldo mensual neto
+    // Para calcular el bruto, necesitamos revertir las deducciones
+    // Fórmula: Neto = Bruto - (Bruto * 0.0635) - (Bruto * 0.15)
+    // Neto = Bruto * (1 - 0.0635 - 0.15)
+    // Neto = Bruto * 0.7865
+    // Bruto = Neto / 0.7865
+
+    const sueldoBrutoMensual = sueldoMensualNeto / 0.7865
     const seguridadSocial = sueldoBrutoMensual * 0.0635 // 6.35% employee contribution
     const irpf = sueldoBrutoMensual * 0.15 // Simplified 15% IRPF
     const sueldoNeto = sueldoBrutoMensual - seguridadSocial - irpf
@@ -317,8 +324,8 @@ export default function GestionNominas() {
         empleado_nombre: empleado.nombre,
         periodo_inicio: periodo.inicio,
         periodo_fin: periodo.fin,
-        importe: empleado.sueldo / 12,
-        importe_ingresado: empleado.sueldo / 12,
+        importe: empleado.sueldo,
+        importe_ingresado: empleado.sueldo,
         importe_efectivo: 0,
         estado: 'Subida',
         file_url: data.publicUrl,
@@ -339,7 +346,7 @@ export default function GestionNominas() {
           empleado_nombre: empleado.nombre,
           periodo_inicio: periodo.inicio,
           periodo_fin: periodo.fin,
-          importe: empleado.sueldo / 12,
+          importe: empleado.sueldo,
           estado: 'Subida',
           file_url: data.publicUrl,
         }
@@ -582,24 +589,25 @@ export default function GestionNominas() {
             </div>
           </div>
 
-          <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-3 grid gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" style={{gridTemplateColumns: 'minmax(200px, 2fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(80px, 1fr) minmax(150px, 1.5fr)'}}>
-            <div>Empleado</div>
-            <div>Periodo</div>
-            <div>Ingresado</div>
-            <div>Efectivo</div>
-            <div>Total</div>
-            <div>Estado</div>
-            <div className="text-right pr-2">Acciones</div>
-          </div>
+          <div className="overflow-x-auto flex-1 p-2">
+            <div className="min-w-[900px]">
+              <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-3 grid gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" style={{gridTemplateColumns: 'minmax(200px, 2fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(80px, 1fr) minmax(150px, 1.5fr)'}}>
+                <div>Empleado</div>
+                <div>Periodo</div>
+                <div>Ingresado</div>
+                <div>Efectivo</div>
+                <div>Total</div>
+                <div>Estado</div>
+                <div className="text-right pr-2">Acciones</div>
+              </div>
 
-          <div className="overflow-y-auto flex-1 p-2">
-            <div className="space-y-1">
-              {loading ? (
-                <div className="text-center py-20 text-slate-500">Cargando nóminas...</div>
-              ) : empleados.length === 0 ? (
-                <div className="text-center py-20 text-slate-500">No hay empleados en este local</div>
-              ) : (
-                empleados.map((empleado) => {
+              <div className="space-y-1 p-2">
+                {loading ? (
+                  <div className="text-center py-20 text-slate-500">Cargando nóminas...</div>
+                ) : empleados.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500">No hay empleados en este local</div>
+                ) : (
+                  empleados.map((empleado) => {
                   const nomina = nominas.find((n) => n.empleado_id === empleado.id && n.periodo_inicio === periodo.inicio && n.periodo_fin === periodo.fin)
                   const estado = nomina?.estado || 'Pendiente'
                   const importe = nomina?.importe
@@ -686,12 +694,13 @@ export default function GestionNominas() {
                         )}
                       </div>
                     </div>
-                  )
-                })
-              )}
-            </div>
-            <div className="mt-6 text-center">
-              <p className="text-xs text-slate-400">Mostrando {empleados.length} empleados activos</p>
+                    )
+                  })
+                )}
+                <div className="mt-6 text-center">
+                  <p className="text-xs text-slate-400">Mostrando {empleados.length} empleados activos</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

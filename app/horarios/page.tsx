@@ -53,7 +53,7 @@ export default function GestionHorarios() {
     if (!selectedLocal) return
     fetchData()
     fetchHorariosLocal()
-  }, [selectedLocal, currentWeekStart])
+  }, [selectedLocal, currentWeekStart, currentMonth, viewMode])
 
   const fetchData = async () => {
     if (!selectedLocal) return
@@ -71,13 +71,24 @@ export default function GestionHorarios() {
         .eq('locale', selectedLocal)
       if (extrasError) throw extrasError
 
-      const weekEnd = addDays(currentWeekStart, 6)
+      // Determinar rango de fechas según el modo de vista
+      let startDate: string
+      let endDate: string
+
+      if (viewMode === 'mes') {
+        startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
+        endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
+      } else {
+        startDate = format(currentWeekStart, 'yyyy-MM-dd')
+        endDate = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd')
+      }
+
       const { data: turnosData, error: turnosError } = await supabase
         .from('turnos')
         .select('*')
         .eq('locale', selectedLocal)
-        .gte('fecha', format(currentWeekStart, 'yyyy-MM-dd'))
-        .lte('fecha', format(weekEnd, 'yyyy-MM-dd'))
+        .gte('fecha', startDate)
+        .lte('fecha', endDate)
       if (turnosError) throw turnosError
 
       setEmpleados(empleadosData || [])

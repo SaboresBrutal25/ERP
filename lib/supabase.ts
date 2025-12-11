@@ -24,6 +24,7 @@ export interface Empleado {
   turno?: string
   locale: string
   notas?: string
+  foto_url?: string
   created_at?: string
 }
 
