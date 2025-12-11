@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 10)",
+      "Bash(npm install:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 6424)",
+      "Bash(taskkill:*)",
+      "Bash(cd /Users/adria/Proyectos _IA/ERP/ERP_Stitch_claude)",
+      "Bash(timeout /t 5)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}
