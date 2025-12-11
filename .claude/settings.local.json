@@ -11,7 +11,12 @@
       "Bash(taskkill:*)",
       "Bash(cd /Users/adria/Proyectos _IA/ERP/ERP_Stitch_claude)",
       "Bash(timeout /t 5)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git fetch:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -17,6 +17,7 @@ export interface Empleado {
   vacaciones_restantes?: number
   vacaciones_pendientes?: string
   vacaciones_dias?: string
+  fecha_inicio?: string
   documentos?: string
   iban?: string
   manipulador?: string

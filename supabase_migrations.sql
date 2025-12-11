@@ -97,7 +97,12 @@ CREATE INDEX IF NOT EXISTS idx_nominas_empleado ON nominas(empleado_id);
 CREATE INDEX IF NOT EXISTS idx_nominas_periodo ON nominas(periodo_inicio, periodo_fin);
 
 -- ============================================
--- 5. MIGRAR DATOS EXISTENTES (OPCIONAL)
+-- 5. AGREGAR CAMPO fecha_inicio A TABLA empleados
+-- ============================================
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_inicio date;
+
+-- ============================================
+-- 6. MIGRAR DATOS EXISTENTES (OPCIONAL)
 -- ============================================
 -- Solo ejecuta esto si tienes turnos con "Refuerzo", "Noche" o "Partido"
 -- Esto los convertirá a "Extra"

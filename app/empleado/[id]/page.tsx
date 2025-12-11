@@ -4,7 +4,15 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import MainLayout from '@/components/MainLayout'
 import { supabase, type Empleado } from '@/lib/supabase'
-import { addMonths, eachDayOfInterval, endOfMonth, format, startOfMonth } from 'date-fns'
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  startOfMonth,
+  differenceInYears,
+  differenceInMonths,
+} from 'date-fns'
 import { es } from 'date-fns/locale'
 
 export default function FichaEmpleado() {
@@ -173,6 +181,23 @@ export default function FichaEmpleado() {
     }
   }
 
+  const calcularAntiguedad = (emp: Empleado | null) => {
+    const startStr = emp?.fecha_inicio || emp?.created_at
+    if (!startStr) return '-'
+    const start = new Date(startStr)
+    if (isNaN(start.getTime())) return '-'
+    const now = new Date()
+    const years = Math.max(0, differenceInYears(now, start))
+    const monthsTotal = Math.max(0, differenceInMonths(now, start))
+    const monthsRemainder = Math.max(0, monthsTotal - years * 12)
+    const parts: string[] = []
+    if (years > 0) parts.push(`${years} ${years === 1 ? 'Año' : 'Años'}`)
+    if (monthsRemainder > 0)
+      parts.push(`${monthsRemainder} ${monthsRemainder === 1 ? 'mes' : 'meses'}`)
+    if (parts.length === 0) return 'Menos de 1 mes'
+    return parts.join(' ')
+  }
+
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
@@ -318,7 +343,9 @@ export default function FichaEmpleado() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">
                   Antigüedad
                 </p>
-                <p className="text-xl font-bold text-primary">2 Años</p>
+                <p className="text-xl font-bold text-primary">
+                  {calcularAntiguedad(empleado)}
+                </p>
               </div>
             </div>
 
@@ -389,6 +416,26 @@ export default function FichaEmpleado() {
                   onChange={(e) =>
                     setEmpleado({ ...empleado, contrato: e.target.value })
                   }
+                  autoComplete="off"
+                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white disabled:opacity-50"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                  Fecha de inicio
+                </label>
+                <input
+                  disabled={!editMode}
+                  type="date"
+                  value={empleado.fecha_inicio ? empleado.fecha_inicio.slice(0, 10) : ''}
+                  onChange={(e) =>
+                    setEmpleado({
+                      ...empleado,
+                      fecha_inicio: e.target.value || undefined,
+                    })
+                  }
+                  autoComplete="off"
                   className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white disabled:opacity-50"
                 />
               </div>
@@ -410,7 +457,7 @@ export default function FichaEmpleado() {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
-                  Sueldo Bruto Anual
+                  Sueldo Mensual Neto
                 </label>
                 <div className="relative">
                   <input
@@ -420,6 +467,7 @@ export default function FichaEmpleado() {
                     onChange={(e) =>
                       setEmpleado({ ...empleado, sueldo: Number(e.target.value) })
                     }
+                    autoComplete="off"
                     className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pl-8 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white disabled:opacity-50"
                   />
                   <span className="material-symbols-rounded absolute left-2.5 top-3 text-slate-400 text-sm">
@@ -436,6 +484,7 @@ export default function FichaEmpleado() {
                   disabled={!editMode}
                   value={empleado.iban || ''}
                   onChange={(e) => setEmpleado({ ...empleado, iban: e.target.value })}
+                  autoComplete="off"
                   className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white font-mono text-sm disabled:opacity-50"
                   placeholder="ES98 2038 5778 9830 1234 5678"
                 />

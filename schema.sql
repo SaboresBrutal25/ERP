@@ -5,7 +5,7 @@
   },
   {
     "table_name": "empleados",
-    "create_table_sql": "CREATE TABLE empleados (\n  sueldo numeric NOT NULL,\\n  documentos text,\\n  vacaciones_tomadas numeric,\\n  vacaciones_restantes numeric,\\n  manipulador text,\\n  iban text,\\n  contrato text NOT NULL,\\n  dni text NOT NULL,\\n  nombre text NOT NULL,\\n  vacaciones_pendientes text,\\n  vacaciones_dias text,\\n  id uuid NOT NULL,\\n  created_at timestamp with time zone,\\n  locale USER-DEFINED NOT NULL,\\n  notas text,\\n  turno text\n);"
+    "create_table_sql": "CREATE TABLE empleados (\n  sueldo numeric NOT NULL,\\n  documentos text,\\n  vacaciones_tomadas numeric,\\n  vacaciones_restantes numeric,\\n  manipulador text,\\n  iban text,\\n  contrato text NOT NULL,\\n  fecha_inicio date,\\n  dni text NOT NULL,\\n  nombre text NOT NULL,\\n  vacaciones_pendientes text,\\n  vacaciones_dias text,\\n  id uuid NOT NULL,\\n  created_at timestamp with time zone,\\n  locale USER-DEFINED NOT NULL,\\n  notas text,\\n  turno text\n);"
   },
   {
     "table_name": "facturacion",
