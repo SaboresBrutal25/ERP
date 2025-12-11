@@ -602,8 +602,8 @@ export default function GestionNominas() {
                   const nomina = nominas.find((n) => n.empleado_id === empleado.id && n.periodo_inicio === periodo.inicio && n.periodo_fin === periodo.fin)
                   const estado = nomina?.estado || 'Pendiente'
                   const importe = nomina?.importe
-                  const ingresado = nomina?.importe_ingresado ?? (importe ?? 0)
-                  const efectivo = nomina?.importe_efectivo ?? 0
+                  const ingresadoNum = Number(nomina?.importe_ingresado ?? importe ?? 0)
+                  const efectivoNum = Number(nomina?.importe_efectivo ?? 0)
                   const periodoLabel = `${format(new Date(periodo.inicio), 'dd MMM')} - ${format(new Date(periodo.fin), 'dd MMM')}`
                   return (
                     <div
@@ -630,11 +630,11 @@ export default function GestionNominas() {
                       <div className="col-span-2 flex items-center text-sm text-slate-600 dark:text-slate-300">{periodoLabel}</div>
 
                       <div className="col-span-2 flex items-center font-medium text-slate-800 dark:text-white">
-                        {ingresado !== undefined ? `${(ingresado ?? 0).toFixed(2)} €` : '--'}
+                        {isNaN(ingresadoNum) ? '--' : `${ingresadoNum.toFixed(2)} €`}
                       </div>
 
                       <div className="col-span-2 flex items-center font-medium text-slate-800 dark:text-white">
-                        {efectivo !== undefined ? `${(efectivo ?? 0).toFixed(2)} €` : '--'}
+                        {isNaN(efectivoNum) ? '--' : `${efectivoNum.toFixed(2)} €`}
                       </div>
 
                       <div className="col-span-1 flex items-center">
