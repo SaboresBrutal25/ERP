@@ -584,11 +584,12 @@ export default function GestionNominas() {
 
           <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-3 grid grid-cols-12 gap-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             <div className="col-span-3">Empleado</div>
-            <div className="col-span-2">Periodo</div>
-            <div className="col-span-2">Ingresado</div>
-            <div className="col-span-2">Efectivo</div>
+            <div className="col-span-1">Periodo</div>
+            <div className="col-span-1">Ingresado</div>
+            <div className="col-span-1">Efectivo</div>
+            <div className="col-span-2">Total</div>
             <div className="col-span-1">Estado</div>
-            <div className="col-span-2 text-right pr-2">Acciones</div>
+            <div className="col-span-3 text-right pr-2">Acciones</div>
           </div>
 
           <div className="overflow-y-auto flex-1 p-2">
@@ -604,6 +605,7 @@ export default function GestionNominas() {
                   const importe = nomina?.importe
                   const ingresadoNum = Number(nomina?.importe_ingresado ?? importe ?? 0)
                   const efectivoNum = Number(nomina?.importe_efectivo ?? 0)
+                  const totalNum = ingresadoNum + efectivoNum
                   const periodoLabel = `${format(new Date(periodo.inicio), 'dd MMM')} - ${format(new Date(periodo.fin), 'dd MMM')}`
                   return (
                     <div
@@ -627,21 +629,25 @@ export default function GestionNominas() {
                         </div>
                       </div>
 
-                      <div className="col-span-2 flex items-center text-sm text-slate-600 dark:text-slate-300">{periodoLabel}</div>
+                      <div className="col-span-1 flex items-center text-xs text-slate-600 dark:text-slate-300">{periodoLabel}</div>
 
-                      <div className="col-span-2 flex items-center text-sm font-medium text-slate-800 dark:text-white">
+                      <div className="col-span-1 flex items-center text-sm font-medium text-slate-800 dark:text-white">
                         {isNaN(ingresadoNum) ? '--' : `${ingresadoNum.toFixed(2)} €`}
                       </div>
 
-                      <div className="col-span-2 flex items-center text-sm font-medium text-slate-800 dark:text-white">
+                      <div className="col-span-1 flex items-center text-sm font-medium text-slate-800 dark:text-white">
                         {isNaN(efectivoNum) ? '--' : `${efectivoNum.toFixed(2)} €`}
+                      </div>
+
+                      <div className="col-span-2 flex items-center text-sm font-bold text-primary dark:text-blue-400">
+                        {isNaN(totalNum) ? '--' : `${totalNum.toFixed(2)} €`}
                       </div>
 
                       <div className="col-span-1 flex items-center">
                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getEstadoBadge(estado)}`}>{estado}</span>
                       </div>
 
-                      <div className="col-span-2 flex items-center justify-end gap-2 pr-2 whitespace-nowrap">
+                      <div className="col-span-3 flex items-center justify-end gap-2 pr-2 whitespace-nowrap">
                         {nomina?.file_url && (
                           <a
                             href={nomina.file_url}
