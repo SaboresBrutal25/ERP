@@ -582,14 +582,14 @@ export default function GestionNominas() {
             </div>
           </div>
 
-          <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-3 grid grid-cols-12 gap-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <div className="col-span-3">Empleado</div>
-            <div className="col-span-1">Periodo</div>
-            <div className="col-span-1">Ingresado</div>
-            <div className="col-span-1">Efectivo</div>
-            <div className="col-span-2">Total</div>
-            <div className="col-span-1">Estado</div>
-            <div className="col-span-3 text-right pr-2">Acciones</div>
+          <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-6 py-3 grid gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" style={{gridTemplateColumns: 'minmax(200px, 2fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(80px, 1fr) minmax(150px, 1.5fr)'}}>
+            <div>Empleado</div>
+            <div>Periodo</div>
+            <div>Ingresado</div>
+            <div>Efectivo</div>
+            <div>Total</div>
+            <div>Estado</div>
+            <div className="text-right pr-2">Acciones</div>
           </div>
 
           <div className="overflow-y-auto flex-1 p-2">
@@ -610,9 +610,10 @@ export default function GestionNominas() {
                   return (
                     <div
                       key={empleado.id}
-                      className="group flex items-center grid grid-cols-12 gap-3 px-4 py-3 bg-white dark:bg-slate-900/40 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 rounded-xl transition-all duration-200"
+                      className="group grid gap-4 px-4 py-3 bg-white dark:bg-slate-900/40 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 rounded-xl transition-all duration-200"
+                      style={{gridTemplateColumns: 'minmax(200px, 2fr) minmax(100px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(100px, 1fr) minmax(80px, 1fr) minmax(150px, 1.5fr)'}}
                     >
-                      <div className="col-span-3 flex items-center gap-3">
+                      <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm shrink-0">
                           {empleado.nombre
                             .split(' ')
@@ -621,33 +622,33 @@ export default function GestionNominas() {
                             .toUpperCase()
                             .slice(0, 2)}
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-800 dark:text-white">{empleado.nombre}</h4>
-                          <p className="text-xs text-slate-500">
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-white truncate">{empleado.nombre}</h4>
+                          <p className="text-xs text-slate-500 truncate">
                             {empleado.puesto || 'Sin puesto'} • DNI: {empleado.dni}
                           </p>
                         </div>
                       </div>
 
-                      <div className="col-span-1 flex items-center text-xs text-slate-600 dark:text-slate-300">{periodoLabel}</div>
+                      <div className="flex items-center text-xs text-slate-600 dark:text-slate-300">{periodoLabel}</div>
 
-                      <div className="col-span-1 flex items-center text-sm font-medium text-slate-800 dark:text-white">
+                      <div className="flex items-center text-sm font-medium text-slate-800 dark:text-white">
                         {isNaN(ingresadoNum) ? '--' : `${ingresadoNum.toFixed(2)} €`}
                       </div>
 
-                      <div className="col-span-1 flex items-center text-sm font-medium text-slate-800 dark:text-white">
+                      <div className="flex items-center text-sm font-medium text-slate-800 dark:text-white">
                         {isNaN(efectivoNum) ? '--' : `${efectivoNum.toFixed(2)} €`}
                       </div>
 
-                      <div className="col-span-2 flex items-center text-sm font-bold text-primary dark:text-blue-400">
+                      <div className="flex items-center text-sm font-bold text-primary dark:text-blue-400">
                         {isNaN(totalNum) ? '--' : `${totalNum.toFixed(2)} €`}
                       </div>
 
-                      <div className="col-span-1 flex items-center">
+                      <div className="flex items-center">
                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getEstadoBadge(estado)}`}>{estado}</span>
                       </div>
 
-                      <div className="col-span-3 flex items-center justify-end gap-2 pr-2 whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2 pr-2 whitespace-nowrap">
                         {nomina?.file_url && (
                           <a
                             href={nomina.file_url}
